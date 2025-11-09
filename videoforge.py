@@ -70,7 +70,9 @@ class VideoForge:
     
     def _setup_logging(self):
         """设置日志"""
-        log_dir = Path('logs')
+        # 获取脚本所在目录的绝对路径
+        script_dir = Path(__file__).resolve().parent
+        log_dir = script_dir / 'logs'
         log_dir.mkdir(exist_ok=True)
         
         log_file = log_dir / f"videoforge_{datetime.now().strftime('%Y%m%d')}.log"

@@ -2,7 +2,7 @@
 
 **强大的视频批量处理工具**
 
-VideoForge 是一款专为行车记录视频优化的批量处理工具，支持智能转码、合并、压缩等功能。
+VideoForge 是一款专为视频优化的批量处理工具，支持智能转码、合并、压缩等功能。
 
 ## ✨ 特性
 
@@ -128,11 +128,17 @@ python videoforge.py analyze <input>
 
 ## 🎨 使用示例
 
+详细示例请查看 [`examples/`](examples/) 目录。
+
 ### 示例 1: 转码行车记录视频
 
 将行车记录视频从 H.264 转为 H.265，节省空间：
 
 ```bash
+# 使用示例脚本
+bash examples/process_nextcloud_videos.sh
+
+# 或者直接使用命令
 python videoforge.py transcode \
   "/Volumes/Disk0/DongNan/Nextcloud/视频/" \
   -o "/Volumes/Disk0/Processing" \
@@ -188,11 +194,39 @@ python videoforge.py merge \
 }
 ```
 
-## 📝 日志
+## 📂 项目结构
 
-处理日志保存在 `logs/` 目录：
-- `videoforge_YYYYMMDD.log`: 每日日志
-- `errors.log`: 错误日志
+```
+VideoForge/
+├── videoforge.py           # 主程序
+├── config.json             # 配置文件（可选）
+├── logs/                   # 日志目录（自动生成）
+│   ├── videoforge_YYYYMMDD.log  # 每日日志
+│   └── errors.log          # 错误日志
+├── examples/               # 使用示例脚本
+│   ├── README.md
+│   ├── process_nextcloud_videos.sh
+│   ├── process_nextcloud_videos_h264.sh
+│   └── process_driving_videos.sh
+├── tests/                  # 测试用例
+│   ├── README.md
+│   ├── test_resolution_detection.py
+│   ├── test_estimation.py
+│   ├── test_setup.sh
+│   └── test_smart_skip.sh
+└── docs/                   # 文档（自动生成）
+    ├── 分辨率优化说明.md
+    ├── 智能预估优化说明.md
+    └── 性能优化总结.md
+```
+
+### 📝 日志
+
+日志文件自动保存在 **脚本所在目录** 的 `logs/` 子目录中：
+- `logs/videoforge_YYYYMMDD.log`: 每日处理日志
+- `logs/errors.log`: 错误日志
+
+无论从哪个目录运行脚本，日志都会保存在 VideoForge 项目目录下。
 
 ## ⚠️ 注意事项
 

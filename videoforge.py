@@ -43,7 +43,8 @@ class VideoForge:
             'total_files': 0,
             'processed': 0,
             'skipped': 0,
-            'skipped_smart': 0,  # 智能跳过的数量
+            'skipped_smart': 0,  # 智能跳过的数量（码率已足够低）
+            'skipped_larger': 0,  # 预估转码后会变大而跳过的数量
             'failed': 0,
             'total_size_before': 0,
             'total_size_after': 0
@@ -169,18 +170,32 @@ class VideoForge:
         else:
             target_crf = crf or 23
         
-        # 根据 CRF 估算目标码率 (粗略估算)
-        # CRF 20 约 4-6 Mbps, CRF 23 约 2-4 Mbps, CRF 28 约 1-2 Mbps (1080p)
+        # 根据 CRF 估算目标码率 (优化估算)
+        # H.264: CRF 20 约 5 Mbps, CRF 23 约 3 Mbps, CRF 28 约 1.5 Mbps (1080p)
+        # H.265: 可以降低约 40-50%
         height = info.get('height', 1080)
-        if target_crf <= 20:
-            target_bitrate = 5000000 * (height / 1080)  # 5 Mbps
-        elif target_crf <= 23:
-            target_bitrate = 3000000 * (height / 1080)  # 3 Mbps
+        
+        if codec == 'h264':
+            # H.264 码率估算
+            if target_crf <= 20:
+                target_bitrate = 5000000 * (height / 1080)  # 5 Mbps
+            elif target_crf <= 23:
+                target_bitrate = 3000000 * (height / 1080)  # 3 Mbps
+            else:
+                target_bitrate = 1500000 * (height / 1080)  # 1.5 Mbps
         else:
-            target_bitrate = 1500000 * (height / 1080)  # 1.5 Mbps
+            # H.265 码率估算（约为 H.264 的 60%）
+            if target_crf <= 20:
+                target_bitrate = 3000000 * (height / 1080)  # 3 Mbps
+            elif target_crf <= 23:
+                target_bitrate = 1800000 * (height / 1080)  # 1.8 Mbps
+            else:
+                target_bitrate = 900000 * (height / 1080)   # 0.9 Mbps
         
         current_codec = info.get('codec', '').lower()
         current_bitrate = info.get('bit_rate', 0)
+        current_size = info.get('size', 0)
+        duration = info.get('duration', 0)
         
         # 目标编码名称
         target_codec_names = []
@@ -201,11 +216,23 @@ class VideoForge:
             elif resolution == '720p' and current_height > 720:
                 needs_resolution_change = True
         
-        # 判断逻辑
+        # 判断1: 已经是目标编码且码率足够低
         if is_target_codec and current_bitrate > 0 and current_bitrate <= target_bitrate:
             if not needs_resolution_change:
                 reason = (f"已是 {current_codec.upper()} 且码率 "
                          f"{current_bitrate/1000000:.1f} Mbps ≤ 目标 {target_bitrate/1000000:.1f} Mbps")
+                return True, reason
+        
+        # 判断2: 预估转码后文件会变大
+        if duration > 0:
+            # 预估转码后的文件大小（字节）
+            # 公式: (目标码率 * 时长) / 8 * 1.1 (预留10%音频和容器开销)
+            estimated_size = (target_bitrate * duration / 8) * 1.1
+            
+            # 如果预估大小 >= 原文件大小的 95%，则跳过（避免转码后反而变大）
+            if estimated_size >= current_size * 0.95:
+                reason = (f"预估转码后 {self._format_size(int(estimated_size))} "
+                         f">= 原文件 {self._format_size(current_size)} 的 95%，跳过转码")
                 return True, reason
         
         return False, ""
@@ -291,13 +318,24 @@ class VideoForge:
                 # 获取文件大小
                 input_size = os.path.getsize(input_path)
                 output_size = os.path.getsize(output_path)
+                
+                # 转码成功
                 ratio = (1 - output_size / input_size) * 100 if input_size > 0 else 0
                 
-                self.logger.info(
-                    f"✅ 转码完成: {os.path.basename(input_path)} "
-                    f"({self._format_size(input_size)} → {self._format_size(output_size)}, "
-                    f"节省 {ratio:.1f}%)"
-                )
+                if ratio >= 0:
+                    self.logger.info(
+                        f"✅ 转码完成: {os.path.basename(input_path)} "
+                        f"({self._format_size(input_size)} → {self._format_size(output_size)}, "
+                        f"节省 {ratio:.1f}%)"
+                    )
+                else:
+                    # 即使变大也保留（因为前面已经预估过，这种情况应该很少）
+                    self.logger.warning(
+                        f"⚠️  转码后文件变大: {os.path.basename(input_path)} "
+                        f"({self._format_size(input_size)} → {self._format_size(output_size)}, "
+                        f"增大 {abs(ratio):.1f}%)，但已完成转码"
+                    )
+                    self.stats['skipped_larger'] += 1
                 
                 self.stats['total_size_before'] += input_size
                 self.stats['total_size_after'] += output_size
@@ -561,6 +599,8 @@ class VideoForge:
         self.logger.info(f"已跳过: {self.stats['skipped']}")
         if self.stats['skipped_smart'] > 0:
             self.logger.info(f"  - 智能跳过: {self.stats['skipped_smart']} (已是目标编码且码率更低)")
+        if self.stats['skipped_larger'] > 0:
+            self.logger.info(f"  - 预估会变大: {self.stats['skipped_larger']} (预估转码后文件不会更小)")
         self.logger.info(f"失败: {self.stats['failed']}")
         
         if self.stats['processed'] > 0:

@@ -152,6 +152,27 @@ class VideoForge:
             self.logger.error(f"获取视频信息失败 {video_path}: {e}")
             return None
     
+    def _get_resolution_tier(self, width: int, height: int) -> Tuple[str, int]:
+        """根据视频宽高判断分辨率等级（使用短边判断，兼容横屏/竖屏）
+        
+        Returns:
+            (tier_name, shorter_side): 例如 ('1080p', 1080)
+        """
+        # 取短边（兼容横屏和竖屏）
+        shorter_side = min(width, height)
+        
+        # 根据短边判断分辨率等级
+        if shorter_side >= 2160:  # 4K
+            return '4K', 2160
+        elif shorter_side >= 1440:  # 2K
+            return '2K', 1440
+        elif shorter_side >= 1080:  # 1080p
+            return '1080p', 1080
+        elif shorter_side >= 720:  # 720p
+            return '720p', 720
+        else:  # 低于720p
+            return 'SD', shorter_side
+    
     def should_skip_video(self, input_path: str, codec: str, quality: str, 
                          crf: int = None, resolution: str = None) -> Tuple[bool, str]:
         """判断是否应该跳过视频处理
@@ -170,27 +191,41 @@ class VideoForge:
         else:
             target_crf = crf or 23
         
-        # 根据 CRF 估算目标码率 (优化估算)
-        # H.264: CRF 20 约 5 Mbps, CRF 23 约 3 Mbps, CRF 28 约 1.5 Mbps (1080p)
-        # H.265: 可以降低约 40-50%
+        # 获取分辨率等级（使用短边判断）
+        width = info.get('width', 1920)
         height = info.get('height', 1080)
+        tier_name, shorter_side = self._get_resolution_tier(width, height)
         
+        # 根据分辨率和 CRF 估算目标码率
+        # 基准值基于短边，与横竖屏无关
         if codec == 'h264':
-            # H.264 码率估算
+            # H.264 码率估算（基于短边）
             if target_crf <= 20:
-                target_bitrate = 5000000 * (height / 1080)  # 5 Mbps
+                # 4K: 20Mbps, 2K: 10Mbps, 1080p: 5Mbps, 720p: 3.5Mbps
+                base_bitrate = {2160: 20000000, 1440: 10000000, 1080: 5000000, 720: 3500000}
+                target_bitrate = base_bitrate.get(shorter_side, 5000000 * (shorter_side / 1080))
             elif target_crf <= 23:
-                target_bitrate = 3000000 * (height / 1080)  # 3 Mbps
+                # 4K: 12Mbps, 2K: 6Mbps, 1080p: 3Mbps, 720p: 2Mbps
+                base_bitrate = {2160: 12000000, 1440: 6000000, 1080: 3000000, 720: 2000000}
+                target_bitrate = base_bitrate.get(shorter_side, 3000000 * (shorter_side / 1080))
             else:
-                target_bitrate = 1500000 * (height / 1080)  # 1.5 Mbps
+                # 4K: 6Mbps, 2K: 3Mbps, 1080p: 1.5Mbps, 720p: 1Mbps
+                base_bitrate = {2160: 6000000, 1440: 3000000, 1080: 1500000, 720: 1000000}
+                target_bitrate = base_bitrate.get(shorter_side, 1500000 * (shorter_side / 1080))
         else:
             # H.265 码率估算（约为 H.264 的 60%）
             if target_crf <= 20:
-                target_bitrate = 3000000 * (height / 1080)  # 3 Mbps
+                # 4K: 12Mbps, 2K: 6Mbps, 1080p: 3Mbps, 720p: 2Mbps
+                base_bitrate = {2160: 12000000, 1440: 6000000, 1080: 3000000, 720: 2000000}
+                target_bitrate = base_bitrate.get(shorter_side, 3000000 * (shorter_side / 1080))
             elif target_crf <= 23:
-                target_bitrate = 1800000 * (height / 1080)  # 1.8 Mbps
+                # 4K: 7Mbps, 2K: 3.5Mbps, 1080p: 1.8Mbps, 720p: 1.2Mbps
+                base_bitrate = {2160: 7000000, 1440: 3500000, 1080: 1800000, 720: 1200000}
+                target_bitrate = base_bitrate.get(shorter_side, 1800000 * (shorter_side / 1080))
             else:
-                target_bitrate = 900000 * (height / 1080)   # 0.9 Mbps
+                # 4K: 3.5Mbps, 2K: 1.8Mbps, 1080p: 0.9Mbps, 720p: 0.6Mbps
+                base_bitrate = {2160: 3500000, 1440: 1800000, 1080: 900000, 720: 600000}
+                target_bitrate = base_bitrate.get(shorter_side, 900000 * (shorter_side / 1080))
         
         current_codec = info.get('codec', '').lower()
         current_bitrate = info.get('bit_rate', 0)
@@ -207,13 +242,16 @@ class VideoForge:
         # 检查是否已经是目标编码
         is_target_codec = current_codec in target_codec_names
         
-        # 检查分辨率是否需要调整
+        # 检查分辨率是否需要调整（使用短边判断）
         needs_resolution_change = False
         if resolution and resolution != 'original':
-            current_height = info.get('height', 0)
-            if resolution == '1080p' and current_height > 1080:
+            if resolution == '4K' and shorter_side > 2160:
                 needs_resolution_change = True
-            elif resolution == '720p' and current_height > 720:
+            elif resolution == '2K' and shorter_side > 1440:
+                needs_resolution_change = True
+            elif resolution == '1080p' and shorter_side > 1080:
+                needs_resolution_change = True
+            elif resolution == '720p' and shorter_side > 720:
                 needs_resolution_change = True
         
         # 判断1: 已经是目标编码且码率足够低
@@ -631,7 +669,7 @@ def main():
     transcode_parser.add_argument('--quality', choices=['high', 'medium', 'low'], default='medium', help='质量预设')
     transcode_parser.add_argument('--preset', help='编码速度预设')
     transcode_parser.add_argument('--crf', type=int, help='CRF 值 (18-28)')
-    transcode_parser.add_argument('--resolution', choices=['1080p', '720p', 'original'], help='目标分辨率')
+    transcode_parser.add_argument('--resolution', choices=['4K', '2K', '1080p', '720p', 'original'], help='目标分辨率')
     transcode_parser.add_argument('--extensions', help='文件扩展名（逗号分隔）')
     transcode_parser.add_argument('--skip-existing', action='store_true', help='跳过已存在的文件')
     transcode_parser.add_argument('--smart-skip', action='store_true', default=True, help='智能跳过（默认启用）：跳过已经是目标编码且码率更低的视频')

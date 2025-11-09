@@ -16,6 +16,8 @@ echo "=================================================="
 # 配置参数
 SOURCE_DIR="/Volumes/Disk0/DongNan/Nextcloud/视频"
 TARGET_DIR="/Volumes/Disk0/Processing"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 CODEC="h265"
 QUALITY="medium"
 
@@ -40,7 +42,7 @@ read -p "是否先进行预览分析？(y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo -e "\n${YELLOW}📊 正在分析视频目录...${NC}"
-    python videoforge.py analyze "$SOURCE_DIR"
+    python "$ROOT_DIR/videoforge.py" analyze "$SOURCE_DIR"
     echo ""
     read -p "按 Enter 继续，或 Ctrl+C 退出..." 
 fi
@@ -50,7 +52,7 @@ read -p "是否先预览转码计划？(y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo -e "\n${YELLOW}🔍 预览转码计划（不实际处理）...${NC}"
-    python videoforge.py transcode \
+    python "$ROOT_DIR/videoforge.py" transcode \
         "$SOURCE_DIR" \
         -o "$TARGET_DIR" \
         --codec "$CODEC" \
@@ -67,7 +69,7 @@ echo "提示：这可能需要很长时间，请保持电脑运行"
 echo "日志文件: logs/videoforge_$(date +%Y%m%d).log"
 echo ""
 
-python videoforge.py transcode \
+python "$ROOT_DIR/videoforge.py" transcode \
     "$SOURCE_DIR" \
     -o "$TARGET_DIR" \
     --codec "$CODEC" \

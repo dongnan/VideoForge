@@ -1,0 +1,9 @@
+# VideoForge 依赖包
+
+# 注意：主要依赖 FFmpeg，需要单独安装
+# macOS: brew install ffmpeg
+# Ubuntu: sudo apt install ffmpeg
+# Windows: 从 https://ffmpeg.org 下载
+
+# Python 包（可选，用于增强功能）
+# tqdm>=4.65.0  # 进度条（可选）

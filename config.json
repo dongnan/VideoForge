@@ -1,0 +1,8 @@
+{
+  "default_codec": "h265",
+  "default_quality": "medium",
+  "default_preset": "medium",
+  "video_extensions": [".mp4", ".MP4", ".avi", ".AVI", ".mov", ".MOV", ".mkv", ".MKV"],
+  "skip_existing": true,
+  "max_threads": 1
+}

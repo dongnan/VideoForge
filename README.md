@@ -1,93 +1,224 @@
-# VideoForge
+# 🔥 VideoForge - 视频熔炉
 
+**强大的视频批量处理工具**
 
+VideoForge 是一款专为行车记录视频优化的批量处理工具，支持智能转码、合并、压缩等功能。
 
-## Getting started
+## ✨ 特性
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- 🎯 **智能转码**: 自动选择最优编码参数
+- 🧠 **智能跳过**: 自动跳过已是目标编码且码率更低的视频（v1.1+）
+- 📦 **批量处理**: 支持整个目录树的递归处理
+- 🗂️ **目录映射**: 保持原始目录结构到目标路径
+- 🔄 **多种编码**: 支持 H.264、H.265/HEVC
+- 📊 **进度跟踪**: 实时显示处理进度和预估时间
+- 💾 **空间预估**: 处理前预估节省的空间
+- 🛡️ **安全模式**: 不会修改原始文件
+- 📝 **详细日志**: 记录所有处理操作
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## 🚀 快速开始
 
-## Add your files
+### 基础用法
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+```bash
+# 转码单个文件
+python videoforge.py transcode input.mp4 -o output.mp4
+
+# 转码整个目录（保持结构）
+python videoforge.py transcode /source/path -o /target/path
+
+# 合并多个视频
+python videoforge.py merge file1.mp4 file2.mp4 -o merged.mp4
+```
+
+### 高级用法
+
+```bash
+# 使用 H.265 编码，高质量
+python videoforge.py transcode /source -o /target --codec h265 --quality high
+
+# 批量处理，跳过已存在的文件
+python videoforge.py transcode /source -o /target --skip-existing
+
+# 仅处理特定扩展名
+python videoforge.py transcode /source -o /target --extensions mp4,MP4
+
+# 预览模式（不实际处理）
+python videoforge.py transcode /source -o /target --dry-run
+```
+
+## 📋 命令参数
+
+### transcode 命令
+
+转码视频文件或目录。
 
 ```
-cd existing_repo
-git remote add origin http://gitlab.idongnan.cn/one/videoforge.git
-git branch -M master
-git push -uf origin master
+python videoforge.py transcode <input> -o <output> [options]
+
+参数:
+  input                输入文件或目录路径
+  -o, --output        输出文件或目录路径
+  
+选项:
+  --codec             编码格式: h264, h265 (默认: h265)
+  --quality           质量: high, medium, low (默认: medium)
+  --preset            编码速度: ultrafast, fast, medium, slow (默认: medium)
+  --crf               CRF 值 (18-28, 越小质量越高, 默认: 23)
+  --resolution        目标分辨率: 1080p, 720p, 原始 (默认: 原始)
+  --extensions        文件扩展名过滤 (默认: mp4,MP4,avi,AVI,mov,MOV)
+  --skip-existing     跳过已存在的文件
+  --smart-skip        智能跳过：跳过已是目标编码且码率更低的视频（默认启用）
+  --no-smart-skip     禁用智能跳过
+  --dry-run           预览模式，不实际处理
+  --threads           并发处理线程数 (默认: 1)
 ```
 
-## Integrate with your tools
+### 🧠 智能跳过功能（v1.1+）
 
-- [ ] [Set up project integrations](http://gitlab.idongnan.cn/one/videoforge/-/settings/integrations)
+智能跳过功能会自动检测视频是否需要转码：
 
-## Collaborate with your team
+**跳过条件**：
+- 视频已经是目标编码格式（如 H.265）
+- 当前码率低于或等于目标码率
+- 不需要调整分辨率
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+**使用示例**：
+```bash
+# 默认启用智能跳过
+python videoforge.py transcode input/ -o output/ --codec h265 --quality medium
 
-## Test and Deploy
+# 禁用智能跳过（强制重新编码所有视频）
+python videoforge.py transcode input/ -o output/ --codec h265 --quality medium --no-smart-skip
+```
 
-Use the built-in continuous integration in GitLab.
+**实际效果**：
+```
+📹 处理 [123/1000]: S_20230605085059_1800_0030.mp4
+⏭️  智能跳过: S_20230605085059_1800_0030.mp4 (已是 HEVC 且码率 7.5 Mbps ≤ 目标 3.0 Mbps)
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### merge 命令
 
-***
+合并多个视频文件。
 
-# Editing this README
+```
+python videoforge.py merge <input1> <input2> ... -o <output> [options]
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+参数:
+  input1 input2 ...   输入视频文件列表
+  -o, --output        输出文件路径
+  
+选项:
+  --reencode          重新编码（否则直接合并）
+  --codec             编码格式: h264, h265
+  --quality           质量: high, medium, low
+```
 
-## Suggestions for a good README
+### analyze 命令
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+分析视频文件信息。
 
-## Name
-Choose a self-explaining name for your project.
+```
+python videoforge.py analyze <input>
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+参数:
+  input               输入文件或目录路径
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## 🎨 使用示例
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### 示例 1: 转码行车记录视频
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+将行车记录视频从 H.264 转为 H.265，节省空间：
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```bash
+python videoforge.py transcode \
+  "/Volumes/Disk0/DongNan/Nextcloud/视频/" \
+  -o "/Volumes/Disk0/Processing" \
+  --codec h265 \
+  --quality medium \
+  --skip-existing
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### 示例 2: 压缩大视频文件
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+压缩高码率的大视频文件：
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```bash
+python videoforge.py transcode \
+  "/path/to/large_video.mp4" \
+  -o "/path/to/compressed_video.mp4" \
+  --codec h265 \
+  --crf 28
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### 示例 3: 合并片段视频
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+将多个小片段合并成一个文件：
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```bash
+python videoforge.py merge \
+  video1.mp4 video2.mp4 video3.mp4 \
+  -o merged_output.mp4 \
+  --reencode \
+  --codec h265
+```
 
-## License
-For open source projects, say how it is licensed.
+## 📊 质量预设说明
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+| 预设 | CRF | 适用场景 | 码率范围 (1080p) |
+|------|-----|---------|-----------------|
+| high | 20 | 重要视频、高质量归档 | 4-6 Mbps |
+| medium | 23 | 日常行车记录 | 2-4 Mbps |
+| low | 28 | 临时存储、大批量 | 1-2 Mbps |
+
+## 🔧 配置文件
+
+创建 `config.json` 自定义默认参数：
+
+```json
+{
+  "default_codec": "h265",
+  "default_quality": "medium",
+  "default_preset": "medium",
+  "video_extensions": ["mp4", "MP4", "avi", "mov"],
+  "skip_existing": true,
+  "max_threads": 4
+}
+```
+
+## 📝 日志
+
+处理日志保存在 `logs/` 目录：
+- `videoforge_YYYYMMDD.log`: 每日日志
+- `errors.log`: 错误日志
+
+## ⚠️ 注意事项
+
+1. **原始文件安全**: VideoForge 永不修改原始文件
+2. **磁盘空间**: 确保目标磁盘有足够空间
+3. **处理时间**: H.265 编码速度较慢，大文件需要较长时间
+4. **CPU 占用**: 转码会占用大量 CPU 资源
+5. **建议先测试**: 使用 `--dry-run` 预览处理计划
+
+## 🛠️ 系统要求
+
+- Python 3.7+
+- FFmpeg 4.0+
+- 推荐 8GB+ 内存
+- 推荐多核 CPU
+
+## 📦 安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+## 📄 License
+
+MIT License
+
+---
+
+**Made with ❤️ for efficient video management**
